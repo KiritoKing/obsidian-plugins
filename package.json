@@ -16,7 +16,7 @@
     "test:browser": "bun run scripts/test-browser.ts",
     "build": "bun run --filter '@chlrc/*' build",
     "audit:public": "bun run scripts/check-public.ts",
-    "check": "bun run format:check && bun run lint && bun run typecheck && bun run test && bun run build && bun run audit:public"
+    "check": "bun run audit:public && bun run format:check && bun run lint && bun run typecheck && bun run test && bun run build && bun run audit:public"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.3",

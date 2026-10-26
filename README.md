@@ -52,6 +52,7 @@ There is no Chrome Web Store listing or published npm package. Source delivery a
 ## Development
 
 Use Bun 1.3.14 or the exact version recorded in `package.json`.
+The project `.npmrc` and lockfile use the public npm registry. Public-source checks reject alternate dependency origins and credential-bearing registry URLs before CI installs dependencies.
 
 ```sh
 bun install --frozen-lockfile --ignore-scripts

@@ -27,6 +27,45 @@ const secretPatterns = [
   /\/(?:Users|home)\/[A-Za-z][^\s/"']+\//,
 ];
 
+export function publicRegistryIssues(content: string): string[] {
+  const issues: string[] = [];
+  try {
+    const lock: unknown = Bun.JSON5.parse(content);
+    if (
+      typeof lock !== "object" ||
+      lock === null ||
+      !("packages" in lock) ||
+      typeof lock.packages !== "object" ||
+      lock.packages === null
+    ) {
+      return ["bun.lock: invalid package table"];
+    }
+    for (const entry of Object.values(lock.packages)) {
+      if (!Array.isArray(entry) || typeof entry[0] !== "string") {
+        issues.push("bun.lock: invalid package entry");
+        continue;
+      }
+      if (entry.length === 1 && entry[0].includes("@workspace:")) continue;
+      const tarball =
+        typeof entry[1] === "string" ? new URL(entry[1]) : undefined;
+      if (
+        tarball?.origin !== "https://registry.npmjs.org" ||
+        tarball.username ||
+        tarball.password ||
+        tarball.search ||
+        tarball.hash
+      ) {
+        issues.push(
+          "bun.lock: package tarballs must use the public npm registry without credentials",
+        );
+      }
+    }
+  } catch {
+    issues.push("bun.lock: invalid lockfile or registry URL");
+  }
+  return [...new Set(issues)];
+}
+
 export async function publicSourceIssues(directory: string): Promise<string[]> {
   const issues: string[] = [];
   async function visit(current: string): Promise<void> {
@@ -57,6 +96,21 @@ export async function publicSourceIssues(directory: string): Promise<string[]> {
         continue;
       }
       const text = content.toString("utf8");
+      if (display === "bun.lock") issues.push(...publicRegistryIssues(text));
+      if (
+        entry.name === ".npmrc" &&
+        text.split(/\r?\n/).some((line) => {
+          const value = line.trim();
+          return (
+            value !== "" &&
+            !value.startsWith("#") &&
+            value !== "registry=https://registry.npmjs.org/"
+          );
+        })
+      )
+        issues.push(
+          `${display}: only the public npm registry may be configured in source`,
+        );
       for (const pattern of secretPatterns) {
         if (pattern.test(text))
           issues.push(

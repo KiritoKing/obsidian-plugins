@@ -9,10 +9,12 @@ Environment: macOS arm64, Bun 1.3.14, TypeScript 6.0.3, WXT 0.21.4, Vite 7.3.7 a
 `bun run check` passed:
 
 - Biome formatting and lint, independent TypeScript checks for tooling and all four packages.
-- 54 unit tests with 183 assertions across 12 files: framing, request boundaries, exact site consent and revocation, queue bounds/cancellation, title stability, browser-tab ownership, socket authentication/lifecycle, installer readback, editor replacement guards and Markdown escaping.
+- 55 unit tests with 189 assertions across 12 files: framing, request boundaries, exact site consent and revocation, queue bounds/cancellation, title stability, browser-tab ownership, socket authentication/lifecycle, installer readback, editor replacement guards, Markdown escaping and dependency-source portability.
 - Production extension build, Obsidian Desktop CommonJS bundle, and standalone native-host compilation.
 - The native-host build directly executes the compiled binary's `--help` and isolated `doctor` commands. Repeated builds verify the previous output receipt before replacing task-owned build artifacts.
-- Public-source checks for unexpected binaries, runtime state, obvious credentials, personal paths and upstream attribution.
+- Public-source checks for unexpected binaries, runtime state, obvious credentials, personal paths, public-registry dependency sources and upstream attribution.
+
+A separate empty-cache fixture installed all 292 packages from the public npm registry with `--frozen-lockfile --ignore-scripts`. All 207 locked external package versions and integrity digests were checked against official public metadata before normalizing tarball locations; dependency versions and the graph were preserved.
 
 The extension ZIP was also built. The production manifest is MV3, has no pregranted sites, and declares only `activeTab`, `nativeMessaging`, `scripting` and `storage`, with HTTP(S) sites optional. The public extension key and host allowlist use the same fixed extension ID.
 
@@ -42,6 +44,7 @@ The test copies the production build and adds a required permission for its exac
 - API/unit tests initially missed a compiled-entrypoint argument bug. The real standalone `--help` invocation reproduced it; the corrected entrypoint and build smoke now cover that failure class.
 - Chrome can reject permission removal. Revocation now removes the extension's approval before attempting Chrome removal, with a regression test and live browser readback.
 - Bun compilation left temporary binaries in the package directory. Compilation now uses the ignored output directory and cleans only newly created build residues; public-source scanning catches regressions.
+- The first remote CI could not reach registry locations inherited from the development machine. The project now pins the public registry, the lockfile retains its verified versions and integrity digests, and CI checks allowed dependency sources before installation. No global registry configuration was changed.
 
 ## Limits and remaining acceptance
 
