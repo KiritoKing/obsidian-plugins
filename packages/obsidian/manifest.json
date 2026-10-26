@@ -1,0 +1,9 @@
+{
+  "id": "browser-profile-link-title",
+  "name": "Browser Profile Link Title",
+  "version": "0.1.0",
+  "minAppVersion": "1.0.0",
+  "description": "Fetch page titles through the local browser profile bridge.",
+  "author": "CHLRC",
+  "isDesktopOnly": true
+}

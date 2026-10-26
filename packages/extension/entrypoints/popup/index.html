@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Browser Profile Title Bridge</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Title Bridge</h1>
+        <p id="connection" role="status">Checking connection…</p>
+        <p class="channel">Channel: <span id="channel">default</span></p>
+      </header>
+      <section class="actions" aria-label="Bridge controls">
+        <button id="reconnect" type="button">Connect / reconnect</button>
+        <button id="disconnect" class="secondary" type="button">Disconnect</button>
+      </section>
+      <section class="reader">
+        <h2>Current page</h2>
+        <button id="read-title" type="button">Read this page title</button>
+        <p id="reader-status" role="status" aria-live="polite"></p>
+        <p id="title-output" class="title-output" aria-live="polite"></p>
+      </section>
+      <button id="open-settings" class="link-button" type="button">Settings and site access</button>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Browser Profile Title Bridge Settings</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Browser Profile Title Bridge</h1>
+        <p id="connection" role="status">Checking connection…</p>
+      </header>
+
+      <section>
+        <h2>Local bridge</h2>
+        <label for="channel">Channel</label>
+        <div class="inline-form">
+          <input id="channel" name="channel" type="text" value="default" maxlength="40" pattern="[a-z0-9][a-z0-9-]{0,39}" />
+          <button id="save-channel" type="button">Save channel</button>
+        </div>
+        <p class="hint">Use lowercase letters, numbers, and hyphens. The channel is stored in this browser profile.</p>
+        <div class="inline-form">
+          <button id="reconnect" type="button">Connect / reconnect</button>
+          <button id="disconnect" class="secondary" type="button">Disconnect</button>
+        </div>
+        <p id="channel-status" class="hint" role="status" aria-live="polite"></p>
+      </section>
+
+      <section>
+        <h2>Site access</h2>
+        <p>Grant access one site at a time. The extension reads only the rendered page title from this Chrome profile.</p>
+        <label for="site-url">Site URL</label>
+        <div class="inline-form">
+          <input id="site-url" name="site-url" type="url" placeholder="https://example.com/page" autocomplete="url" />
+          <button id="grant-site" type="button">Grant site</button>
+        </div>
+        <p id="permission-status" class="hint" role="status" aria-live="polite"></p>
+        <h3>Granted sites</h3>
+        <ul id="site-list" aria-live="polite"></ul>
+        <p id="empty-sites" class="hint">No sites are currently granted.</p>
+      </section>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

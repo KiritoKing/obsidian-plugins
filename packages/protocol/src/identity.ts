@@ -1,0 +1,4 @@
+// Public key only; no private key is exported or stored.
+export const EXTENSION_PUBLIC_KEY =
+  "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAox7gH6n+dikdzFRTFQZATMrTN1VoXJh9lqM/n6MAIc/G3FpWY9aPX6HN+lfnWEz6p+8XmHEMT0lATO4ioilE2qfvDgUK3jt9ps/m2NTT045+b/l9QeYsTO7us08fJ/dFxtpS6ky7es9j+Y7SI6KBrtaRS0NJ2Id7lrNFKG8OvQtFytVhhuTwGITmg2Ut0TE+6SZqU+YlEWA95Hz4nKdIKOvNZtZghBZHdm4YhoBsRLXUebefZjA3V26pr26e8uaTDeREmJm55wCt6SSIT9WCUBsNKQgghaC/hIU9IRnh39v7vORgMnXnhGRp7hA0/yh7F3V60jhN1cYjo0nu+Z/bqQIDAQAB";
+export const EXTENSION_ID = "ligookeeainjhapkanfmgabeenmeljbn";

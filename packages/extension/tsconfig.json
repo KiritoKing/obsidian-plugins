@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["bun", "chrome"]
+  },
+  "include": [
+    ".wxt/types/**/*.d.ts",
+    "entrypoints/**/*.ts",
+    "src/**/*.ts",
+    "tests/**/*.ts",
+    "wxt.config.ts"
+  ]
+}

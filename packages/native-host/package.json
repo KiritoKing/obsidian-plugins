@@ -1,0 +1,21 @@
+{
+  "name": "@chlrc/browser-profile-title-host",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "bin": {
+    "browser-profile-title-host": "./src/cli.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "bun test",
+    "build": "bun run scripts/build.ts"
+  },
+  "dependencies": {
+    "@chlrc/browser-profile-title-protocol": "workspace:*"
+  }
+}

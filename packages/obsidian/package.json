@@ -1,0 +1,17 @@
+{
+  "name": "@chlrc/obsidian-browser-profile-title",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "bun test ./tests",
+    "build": "bun run ./scripts/build.ts"
+  },
+  "dependencies": {
+    "@chlrc/browser-profile-title-protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "obsidian": "1.14.4"
+  }
+}
