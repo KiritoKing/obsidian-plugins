@@ -12,7 +12,25 @@ bun run --filter @chlrc/obsidian-browser-profile-title test
 bun run --filter @chlrc/obsidian-browser-profile-title build
 ```
 
-The build writes a manual-install package to `dist/browser-profile-link-title/` with `main.js`, `manifest.json`, `styles.css`, this README, and the original MIT license. It does not install into or replace an existing Obsidian plugin. Copy the built directory to a separate Obsidian plugin directory only when you explicitly choose to test it.
+The build writes five allowlisted files to `dist/browser-profile-link-title/`: `main.js`, `manifest.json`, `styles.css`, this README, and the original MIT license. This directory is build input; it is not the GitHub Release package. It does not install into or replace an existing Obsidian plugin.
+
+## GitHub Release: manual install and upgrade
+
+The GitHub Release provides `browser-profile-link-title-<version>.zip` and raw `main.js`, `manifest.json`, and `styles.css` files. To install, extract the ZIP into the vault's `.obsidian/plugins/` directory so it creates `.obsidian/plugins/browser-profile-link-title/` with the five package files, then enable **Browser Profile Link Title** in Obsidian's Community plugins settings. On a first install, disable the older **Auto Link Title** plugin before enabling this fork to prevent two paste handlers from running. This fork has its own plugin ID and does not import the older plugin's settings.
+
+To upgrade this plugin, disable it in Obsidian, then replace `main.js`, `manifest.json`, and `styles.css` in `.obsidian/plugins/browser-profile-link-title/` with the raw files from the same Release. Keep the existing `data.json` so this plugin's settings remain available, then re-enable it. You can also extract the ZIP over the existing plugin directory; do not delete the directory or its `data.json` first.
+
+This is a manual GitHub Release installation. No BRAT or official Obsidian community directory installation path is provided.
+
+## Build a Release package
+
+After building the plugin, run this from the monorepo root:
+
+```sh
+bun run scripts/package-obsidian.ts --output ./release-artifacts
+```
+
+The command writes `browser-profile-link-title-0.2.0.zip` and the three raw runtime files into the output directory. The ZIP contains exactly `browser-profile-link-title/{main.js,manifest.json,styles.css,README.md,LICENSE}`. Packaging requires the system `zip` and `unzip` commands on `PATH`; the script checks for both, validates the archive and file hashes, and refuses to overwrite target files already in the output directory. macOS and Ubuntu CI environments must have both system commands available.
 
 ## Behavior and privacy
 

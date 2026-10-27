@@ -49,3 +49,18 @@ Planned impact (recorded before implementation):
 Ownership: extension worker owns the extension package; fallback worker owns the Obsidian resolver, model, main integration, and their tests; root owns Obsidian settings UI/styles, root integration/docs, browser fixtures, final validation and installation handoff. Shared protocol changes require root coordination; none is planned initially.
 
 Acceptance: the popup identifies the current site and shows its effective authorization before/after **Grant this site**; unsupported pages and denied permissions remain explicit; the settings list reflects grants/revocations; modern interfaces work at popup and full-page sizes with keyboard access and light/dark themes; every specified browser failure invokes the old path once; browser success does not invoke fallback; both failures and stale editor responses preserve user text. Local, fixture, and authenticated-profile evidence are reported separately.
+
+## 2026-10-27 — generated icon and GitHub Release
+
+The user authorizes publishing both components to GitHub, a CI-built Chrome CRX and an Obsidian manual-install release, without submitting to the Obsidian community directory. The first public release uses the existing unpublished version `0.2.0`, with a matching `0.2.0` tag. No browser-store submission is included.
+
+Planned impact, recorded before implementation:
+
+1. Generate one original document/link icon with the built-in image tool, retain its prompt/provenance, add production PNG renditions and connect them to the extension and its UI. Public-source scanning permits only the exact reviewed PNG assets after validating their format, dimensions and size.
+2. Preserve the current development extension ID. Its original signing private key was never exported; it cannot sign a release. The user explicitly approved a new stable release signing identity and storage only in this repository's GitHub Actions secret `CRX_PRIVATE_KEY`. Generate the key in memory, retain only its public identity in source and never upload the private key as an artifact. CI uses a private temporary file and removes it after signing.
+3. Admit exactly the development and release extension IDs in the Native Messaging installer/handshake. Keep the protocol and existing development installation compatible; no browser-profile configuration or permissions are changed as part of release work.
+4. Add deterministic allowlisted packaging for the Obsidian ZIP and raw `main.js`, `manifest.json`, `styles.css`; package the Chrome CRX/ZIP and supported native-host binaries. Record hashes and verify archive contents, version and signing identity. Package only build outputs, never vault data, browser state, signing material or local diagnostics.
+5. Add a tag-triggered release workflow with least-privilege jobs: full checks and isolated browser integration, platform-native builds, signed CRX packaging, artifact inspection and SHA-256 readback before a public GitHub Release. Publish from the tested source revision; record local/CI/download evidence separately.
+6. Update installation/release documentation and publish the authorized source/tag/release to `KiritoKing/obsidian-plugins`. Keep unrelated vault and parent-repository work intact; no npm, Chrome Web Store or Obsidian-directory publication.
+
+Ownership: icon worker owns the extension's image assets/configuration/UI and the narrow public-image gate; native worker owns only dual-identity protocol/host compatibility; packaging worker owns only Obsidian package creation/tests/docs; root owns signing provisioning, release identity, Chrome packaging, CI, release integration and final readback. Shared interfaces are agreed before changing them.

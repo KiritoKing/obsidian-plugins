@@ -15,6 +15,9 @@
     "test": "bun test packages scripts",
     "test:browser": "bun run scripts/test-browser.ts",
     "build": "bun run --filter '@chlrc/*' build",
+    "package:chrome": "bun run scripts/package-chrome.ts",
+    "package:obsidian": "bun run scripts/package-obsidian.ts",
+    "package:native": "bun run scripts/package-native-host.ts",
     "audit:public": "bun run scripts/check-public.ts",
     "check": "bun run audit:public && bun run format:check && bun run lint && bun run typecheck && bun run test && bun run build && bun run audit:public"
   },

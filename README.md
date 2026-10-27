@@ -1,5 +1,7 @@
 # Personal Obsidian plugins
 
+![Browser Profile Title Bridge icon](packages/extension/public/icons/icon-128.png)
+
 Personal, unofficial Obsidian plugins and a local browser-profile title bridge. This repository is a component of the [KiritoKing personal productivity system](https://github.com/KiritoKing/KiritoKing), alongside the separately maintained Paseo and DSH plugin repositories.
 
 | Component              | Purpose                                                            |
@@ -20,6 +22,17 @@ The extension requires a separate approval for each site. Open its popup on the 
 Browser requests reject recognized login pages, access-denied pages, cross-origin redirects and unusable titles. Missing approval, a disconnected bridge, timeout or another browser failure automatically invokes the original scraper when fallback is enabled. It uses an independent session rather than Chrome's sign-in, so a private page may still need browser approval. If both paths fail, the original URL stays intact. Titles inserted into notes follow the vault's normal storage and sync settings.
 
 The plugin retrieves titles only. The fallback may load page HTML to extract a title, but it does not import or store document bodies or call a Feishu API. Its hidden renderer keeps normal web security and isolation enabled. The upstream LinkPreview service is not enabled.
+
+## Install a GitHub release
+
+Download the files from the [latest GitHub release](https://github.com/KiritoKing/obsidian-plugins/releases/latest). Each release includes signed Chrome CRX3 and matching ZIP packages, an Obsidian plugin ZIP, macOS arm64 and Linux x64 native hosts, and `SHA256SUMS`.
+
+1. Extract the Chrome ZIP into a stable directory. In `chrome://extensions`, enable Developer mode and choose **Load unpacked** with that directory. The signed-release identity is `fgcokpikjhdcomfiingeapogdkgaalol`. Ordinary Chrome on macOS/Windows restricts off-store CRX installation; use the ZIP for a personal unpacked install.
+2. Extract the native-host archive for your system into a stable directory and follow its `INSTALL.md` to register Native Messaging. If upgrading an owned registration, inspect `install --dry-run --replace` before applying `--replace`. New host builds allow both the development and release extension identities.
+3. Extract the Obsidian ZIP into the vault's `.obsidian/plugins/` directory. It contains a `browser-profile-link-title` folder. Enable **Browser Profile Link Title** and disable the original Auto Link Title. Preserve your existing `data.json` when upgrading; the ZIP contains no user settings. The release also provides separate `main.js`, `manifest.json` and `styles.css` attachments.
+4. Open the extension on a target site, click **Grant this site**, and confirm Chrome's permission prompt. Use the same bridge channel in Chrome and Obsidian. If development and release extensions are installed together, assign different channels or disable one.
+
+Source development builds retain `ligookeeainjhapkanfmgabeenmeljbn`. A separate release installation has its own site approvals. GitHub publication does not submit either plugin to an official directory or store.
 
 ## Install from source
 
@@ -66,3 +79,5 @@ bun run test:browser
 The browser test creates a disposable Chromium profile with a synthetic login session and a loopback page. Its fixture copy of the production manifest pregrants only that loopback origin, while the extension's own site-consent UI is exercised. It never opens or copies a personal browser profile or installs into one.
 
 Read [PLAN.md](PLAN.md) for scope and acceptance and [SECURITY.md](SECURITY.md) for local trust boundaries. The source fork retains its upstream MIT license; see [ATTRIBUTION.md](ATTRIBUTION.md).
+
+Release signing, packaging and publication are documented in [RELEASING.md](RELEASING.md). The generated icon's source and prompt are recorded in [the asset provenance](packages/extension/assets/README.md).

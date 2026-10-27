@@ -2,6 +2,7 @@ name: Public source and local bridge
 
 on:
   push:
+    branches: ["**"]
   pull_request:
 
 permissions:

@@ -16,7 +16,13 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, type BrowserContext, type Page } from "playwright";
 import { HOST_NAME } from "../packages/protocol/src/index.ts";
-import { EXTENSION_ID } from "../packages/protocol/src/identity.ts";
+import {
+  EXTENSION_ID,
+  EXTENSION_PUBLIC_KEY,
+  RELEASE_EXTENSION_ID,
+  RELEASE_EXTENSION_PUBLIC_KEY,
+} from "../packages/protocol/src/identity.ts";
+import { runPackagingTool } from "./package-chrome.ts";
 import {
   channelDirectory,
   connectionFile,
@@ -29,6 +35,16 @@ import {
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const builtExtension = join(root, "packages/extension/.output/chrome-mv3");
+const args = process.argv.slice(2);
+if (args.length && (args.length !== 2 || args[0] !== "--release-zip"))
+  throw new Error(
+    "Usage: test-browser.ts [--release-zip <signed-release-zip>]",
+  );
+const releaseZip = args[1] ? resolve(args[1]) : undefined;
+const fixtureExtensionId = releaseZip ? RELEASE_EXTENSION_ID : EXTENSION_ID;
+const fixturePublicKey = releaseZip
+  ? RELEASE_EXTENSION_PUBLIC_KEY
+  : EXTENSION_PUBLIC_KEY;
 const hostBinary = join(root, ".output/native-host/browser-profile-title-host");
 const uiArtifacts = join(root, ".output/ui-title-access");
 const channel = `bt-${crypto.randomUUID().slice(0, 6)}`;
@@ -161,7 +177,7 @@ async function openPopupFixture(
     });
   }, currentTab);
   await popup.setViewportSize({ width: 380, height: 760 });
-  await popup.goto(`chrome-extension://${EXTENSION_ID}/popup.html`);
+  await popup.goto(`chrome-extension://${fixtureExtensionId}/popup.html`);
   await popup.locator("#grant-site").waitFor({ state: "visible" });
   return popup;
 }
@@ -189,10 +205,33 @@ try {
     "The random test channel must be unused",
   );
   ownsRuntime = true;
-  await cp(builtExtension, extensionDirectory, {
-    recursive: true,
-    errorOnExist: true,
-  });
+  if (releaseZip) {
+    const entries = (await runPackagingTool(["unzip", "-Z1", releaseZip]))
+      .trim()
+      .split(/\r?\n/);
+    if (
+      entries.some(
+        (name) =>
+          name.startsWith("/") ||
+          name.split("/").includes("..") ||
+          !/^[A-Za-z0-9._/-]+$/.test(name),
+      )
+    )
+      throw new Error("Unsafe release ZIP entry");
+    await mkdir(extensionDirectory);
+    await runPackagingTool([
+      "unzip",
+      "-q",
+      releaseZip,
+      "-d",
+      extensionDirectory,
+    ]);
+  } else {
+    await cp(builtExtension, extensionDirectory, {
+      recursive: true,
+      errorOnExist: true,
+    });
+  }
   const manifestPath = join(extensionDirectory, "manifest.json");
   const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as Record<
     string,
@@ -204,6 +243,7 @@ try {
     "The production extension must have no pregranted sites",
   );
   assert.equal(manifest.manifest_version, 3);
+  assert.equal(manifest.key, fixturePublicKey);
   // This fixture-only grant avoids automating Chrome's native permission dialog.
   // The extension's own exact-site consent UI is still exercised below.
   manifest.host_permissions = [`${origin}/*`];
@@ -257,7 +297,7 @@ try {
 
   const options = await context.newPage();
   diagnosticOptions = options;
-  await options.goto(`chrome-extension://${EXTENSION_ID}/options.html`);
+  await options.goto(`chrome-extension://${fixtureExtensionId}/options.html`);
   await options.locator("#channel").fill(channel);
   await options.locator("#save-channel").click();
   await waitFor(

@@ -1,5 +1,13 @@
 # Local data boundary
 
+## Release identity and signing
+
+Development and signed releases use separate fixed extension identities. Native Messaging permits only these two identities and checks that the connected Chrome origin agrees with the protocol greeting. The signing private key is stored in the repository's `CRX_PRIVATE_KEY` Actions secret. Only the CRX packaging step receives it; the packer writes a private temporary key file, verifies the generated CRX3 signature and public identity, then removes the temporary directory. Release assets never include the private key.
+
+Release ZIPs contain the exact payload of the verified CRX. The publisher accepts only the eight named artifacts, uploads to a draft, downloads and compares every byte before publishing, and includes `SHA256SUMS`. Re-running publication refuses to replace a different uploaded asset or modify an already published release.
+
+## Browser data
+
 The browser extension reads only a title from a permitted page by default. Authentication is handled by the browser profile and is never exported through the bridge.
 
 The native host accepts a fixed, versioned protocol. It does not provide arbitrary code execution, shell execution, proxying, file reads or cookie access. Local socket clients authenticate with pairing material stored in a user-only runtime directory outside the vault and source checkout.

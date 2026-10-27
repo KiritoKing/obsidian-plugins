@@ -25,6 +25,8 @@ bun run --filter @chlrc/browser-profile-title-extension zip
 
 The public extension key is imported from `@chlrc/browser-profile-title-protocol/identity` so the unpacked extension ID matches the native host allowlist. The ZIP output is a build artifact and must not be installed into a personal Chrome profile without explicit authorization.
 
+Source builds use the development identity; GitHub release packaging replaces the public manifest key with the fixed release identity and signs it in Actions. The native host allows exactly those two identities. Release ZIPs contain the verified CRX payload, including the generated icon at 16, 32, 48 and 128 pixels. See [release packaging](../../RELEASING.md) and [icon provenance](assets/README.md).
+
 Unit tests use synthetic URLs and page titles:
 
 ```sh

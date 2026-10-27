@@ -85,4 +85,15 @@ Obsidian tries the browser first, then the pinned upstream scraping chain once w
 ### Remaining v0.2 acceptance
 
 - Native toolbar-popup activation, the native Chrome permission prompt, real drag/drop UI and deliberately expired authentication in the everyday profile are not newly verified by this update.
-- v0.2 has local source/build/fixture/runtime evidence. It has not been pushed or run through remote CI; the earlier linked CI applies to the v0.1 source baseline.
+- These v0.2 runtime checks preceded publication. The release preflight below records the additional packaging checks; current remote results remain available in Actions.
+
+## v0.2 GitHub release preflight (2026-10-27)
+
+- The generated RGBA icon is retained with its full prompt and provenance. The 16/32/48/128 pixel outputs are wired into the extension manifest, popup and settings. Fresh light/dark fixture screenshots were inspected. Public scanning permits only these five exact PNG paths and checks dimensions, RGBA structure, CRC, size and links.
+- `bun run check` passed with 114 tests, 442 assertions across 18 files, formatting, lint, independent typechecks, all builds and public-source scanning. New coverage includes CRX3 signature verification, key mismatch and tamper rejection, dual native identities, safe manifest replacement, icon allowlists and strict Obsidian archive packaging.
+- The complete nine-check browser fixture passed separately for the original development identity and the fixed release public identity. The local release-identity fixture is an unsigned ZIP prepared only to test routing; it is not a distributable or evidence of the production signing secret.
+- A separate local Chromium packaging smoke created an actual CRX3 using a disposable test key and independently verified its RSA signature. That test key is not the production release identity, and its outputs are not published.
+- The actual Obsidian ZIP and three raw files were packaged and read back against their build hashes. The macOS arm64 native archive was built from the current standalone binary and verified to contain exactly its executable, installation instructions and license.
+- The release workflow repeats full Linux checks, exercises both development and signed-release contents, and builds/smoke-tests the native hosts on Linux x64 and macOS arm64. Its publisher verifies eight allowlisted artifacts, adds checksums, and compares downloaded uploads before publishing. Workflow configuration is source evidence; a successful run and independently downloaded release files are required for remote publication acceptance.
+
+The signing private key is an Actions secret, not a repository file. The fixed release identity is separate from the original development identity. Existing development installations continue to work; installation of the separate release requires its own site approvals. Neither GitHub publication nor these fixtures installs a release into an everyday profile, verifies its native permission dialog, or submits an official store/directory listing.
