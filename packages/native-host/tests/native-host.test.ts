@@ -8,7 +8,11 @@ import {
   type BridgeRequest,
   type ConnectionInfo,
 } from "@chlrc/browser-profile-title-protocol";
-import { EXTENSION_ID } from "@chlrc/browser-profile-title-protocol/identity";
+import {
+  EXTENSION_ID,
+  RELEASE_EXTENSION_ID,
+  SUPPORTED_EXTENSION_IDS,
+} from "@chlrc/browser-profile-title-protocol/identity";
 import {
   channelDirectory,
   connectionFile,
@@ -295,85 +299,182 @@ describe("authenticated native bridge", () => {
 });
 
 describe("Native Messaging lifecycle", () => {
-  test("starts after the exact extension hello and cleans up on stdin EOF", async () => {
+  for (const extensionId of SUPPORTED_EXTENSION_IDS) {
+    test(`accepts the exact extension hello and cleans up on stdin EOF (${extensionId})`, async () => {
+      const base = await makeShortTempDirectory();
+      const input = new PassThrough();
+      const output = new PassThrough();
+      const errorOutput = new PassThrough();
+      const reader = new FrameReader(output);
+      const logChunks: Buffer[] = [];
+      errorOutput.on("data", (chunk: Buffer) => logChunks.push(chunk));
+      const host = runNativeHost({
+        argv: [nativeMessagingOrigin(extensionId)],
+        input,
+        output,
+        errorOutput,
+        stateBase: base,
+      });
+      try {
+        input.write(
+          Buffer.from(
+            encodeFrame({
+              version: 1,
+              type: "hello",
+              channel: "native-eof",
+              extensionId,
+              instanceId: "test-instance",
+            }),
+          ),
+        );
+        expect(await reader.next()).toEqual({
+          version: 1,
+          type: "status",
+          connected: true,
+          channel: "native-eof",
+        });
+
+        const connection = JSON.parse(
+          await readFile(connectionFile("native-eof", base), "utf8"),
+        ) as ConnectionInfo;
+        expect(TOKEN_PATTERN.test(connection.token)).toBe(true);
+        const client = await connectFrames(connection.socketPath);
+        await authenticate(client, connection.token);
+        client.send(titleRequest("active-on-eof", 5_000));
+        const forwarded = (await reader.next()) as BridgeRequest;
+        if (forwarded.type !== "resolve-title")
+          throw new Error("Expected a forwarded title request");
+
+        input.end();
+        expect(await reader.next()).toMatchObject({
+          type: "cancel",
+          requestId: forwarded.id,
+        });
+        expect(await client.next()).toMatchObject({
+          type: "response",
+          id: "active-on-eof",
+          ok: false,
+          error: { code: "BRIDGE_UNAVAILABLE" },
+        });
+        expect(await reader.next()).toEqual({
+          version: 1,
+          type: "status",
+          connected: false,
+          channel: "native-eof",
+        });
+        expect(await host).toBe(0);
+        expect(
+          await inspectRuntimeState({ channel: "native-eof", stateBase: base }),
+        ).toEqual({
+          channel: "native-eof",
+          state: "not-configured",
+        });
+        await expect(
+          readFile(connectionFile("native-eof", base), "utf8"),
+        ).rejects.toMatchObject({ code: "ENOENT" });
+        expect(Buffer.concat(logChunks).toString("utf8")).toBe("");
+        client.destroy();
+      } finally {
+        input.destroy();
+        output.destroy();
+        errorOutput.destroy();
+        await removeTempDirectory(base);
+      }
+    });
+  }
+
+  test("rejects an unknown third extension origin before starting the bridge", async () => {
     const base = await makeShortTempDirectory();
     const input = new PassThrough();
     const output = new PassThrough();
     const errorOutput = new PassThrough();
     const reader = new FrameReader(output);
-    const logChunks: Buffer[] = [];
-    errorOutput.on("data", (chunk: Buffer) => logChunks.push(chunk));
+    const unknownId = "a".repeat(32);
     const host = runNativeHost({
-      argv: [nativeMessagingOrigin()],
+      argv: [`chrome-extension://${unknownId}/`],
       input,
       output,
       errorOutput,
       stateBase: base,
     });
     try {
-      input.write(
-        Buffer.from(
-          encodeFrame({
-            version: 1,
-            type: "hello",
-            channel: "native-eof",
-            extensionId: EXTENSION_ID,
-            instanceId: "test-instance",
-          }),
-        ),
-      );
-      expect(await reader.next()).toEqual({
-        version: 1,
-        type: "status",
-        connected: true,
-        channel: "native-eof",
-      });
-
-      const connection = JSON.parse(
-        await readFile(connectionFile("native-eof", base), "utf8"),
-      ) as ConnectionInfo;
-      expect(TOKEN_PATTERN.test(connection.token)).toBe(true);
-      const client = await connectFrames(connection.socketPath);
-      await authenticate(client, connection.token);
-      client.send(titleRequest("active-on-eof", 5_000));
-      const forwarded = (await reader.next()) as BridgeRequest;
-      if (forwarded.type !== "resolve-title")
-        throw new Error("Expected a forwarded title request");
-
-      input.end();
-      expect(await reader.next()).toMatchObject({
-        type: "cancel",
-        requestId: forwarded.id,
-      });
-      expect(await client.next()).toMatchObject({
-        type: "response",
-        id: "active-on-eof",
-        ok: false,
-        error: { code: "BRIDGE_UNAVAILABLE" },
-      });
       expect(await reader.next()).toEqual({
         version: 1,
         type: "status",
         connected: false,
-        channel: "native-eof",
+        channel: "default",
+        error: {
+          code: "AUTHENTICATION_FAILED",
+          message: "Authentication failed.",
+        },
       });
-      expect(await host).toBe(0);
+      expect(await host).toBe(1);
       expect(
-        await inspectRuntimeState({ channel: "native-eof", stateBase: base }),
+        await inspectRuntimeState({ channel: "default", stateBase: base }),
       ).toEqual({
-        channel: "native-eof",
+        channel: "default",
         state: "not-configured",
       });
-      await expect(
-        readFile(connectionFile("native-eof", base), "utf8"),
-      ).rejects.toMatchObject({ code: "ENOENT" });
-      expect(Buffer.concat(logChunks).toString("utf8")).toBe("");
-      client.destroy();
     } finally {
       input.destroy();
       output.destroy();
       errorOutput.destroy();
       await removeTempDirectory(base);
+    }
+  });
+
+  test("rejects unknown and mismatched hello identities under an allowed origin", async () => {
+    for (const helloExtensionId of ["a".repeat(32), RELEASE_EXTENSION_ID]) {
+      const base = await makeShortTempDirectory();
+      const input = new PassThrough();
+      const output = new PassThrough();
+      const errorOutput = new PassThrough();
+      const reader = new FrameReader(output);
+      const host = runNativeHost({
+        argv: [nativeMessagingOrigin(EXTENSION_ID)],
+        input,
+        output,
+        errorOutput,
+        stateBase: base,
+      });
+      try {
+        input.write(
+          Buffer.from(
+            encodeFrame({
+              version: 1,
+              type: "hello",
+              channel: "mismatched-hello",
+              extensionId: helloExtensionId,
+              instanceId: "test-instance",
+            }),
+          ),
+        );
+        expect(await reader.next()).toEqual({
+          version: 1,
+          type: "status",
+          connected: false,
+          channel: "default",
+          error: {
+            code: "AUTHENTICATION_FAILED",
+            message: "Authentication failed.",
+          },
+        });
+        expect(await host).toBe(1);
+        expect(
+          await inspectRuntimeState({
+            channel: "mismatched-hello",
+            stateBase: base,
+          }),
+        ).toEqual({
+          channel: "mismatched-hello",
+          state: "not-configured",
+        });
+      } finally {
+        input.destroy();
+        output.destroy();
+        errorOutput.destroy();
+        await removeTempDirectory(base);
+      }
     }
   });
 });
@@ -427,6 +528,10 @@ describe("installer and doctor", () => {
       expect(JSON.parse(firstContents)).toMatchObject({
         path: binary,
         type: "stdio",
+        allowed_origins: [
+          "chrome-extension://ligookeeainjhapkanfmgabeenmeljbn/",
+          "chrome-extension://fgcokpikjhdcomfiingeapogdkgaalol/",
+        ],
       });
       expect((await lstat(installed.manifestPath)).mode & 0o777).toBe(0o600);
 
@@ -440,6 +545,30 @@ describe("installer and doctor", () => {
         firstContents,
       );
 
+      const legacyManifest = {
+        name: "com.chlrc.browser_profile_title",
+        description: "Local browser profile title bridge for Obsidian",
+        path: binary,
+        type: "stdio",
+        allowed_origins: [
+          "chrome-extension://ligookeeainjhapkanfmgabeenmeljbn/",
+        ],
+      };
+      await writeFile(
+        installed.manifestPath,
+        `${JSON.stringify(legacyManifest, null, 2)}\n`,
+        { mode: 0o600 },
+      );
+      await expect(
+        installNativeMessagingManifest({
+          binaryPath: binary,
+          stateDir: profile,
+        }),
+      ).rejects.toThrow("explicit --replace");
+      expect(
+        JSON.parse(await readFile(installed.manifestPath, "utf8")),
+      ).toEqual(legacyManifest);
+
       const replacementBinary = await createFixtureBinary(
         root,
         "replacement-host",
@@ -452,8 +581,37 @@ describe("installer and doctor", () => {
       expect(replaced.replaced).toBe(true);
       expect(
         JSON.parse(await readFile(replaced.manifestPath, "utf8")),
-      ).toMatchObject({ path: replacementBinary });
+      ).toMatchObject({
+        path: replacementBinary,
+        allowed_origins: [
+          "chrome-extension://ligookeeainjhapkanfmgabeenmeljbn/",
+          "chrome-extension://fgcokpikjhdcomfiingeapogdkgaalol/",
+        ],
+      });
       expect((await lstat(replaced.manifestPath)).mode & 0o777).toBe(0o600);
+
+      const thirdPartyManifest = {
+        ...legacyManifest,
+        name: "third-party.native-host",
+        allowed_origins: [
+          "chrome-extension://bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/",
+        ],
+      };
+      await writeFile(
+        replaced.manifestPath,
+        `${JSON.stringify(thirdPartyManifest, null, 2)}\n`,
+        { mode: 0o600 },
+      );
+      await expect(
+        installNativeMessagingManifest({
+          binaryPath: binary,
+          stateDir: profile,
+          replace: true,
+        }),
+      ).rejects.toThrow("not managed by this host");
+      expect(JSON.parse(await readFile(replaced.manifestPath, "utf8"))).toEqual(
+        thirdPartyManifest,
+      );
     } finally {
       await removeTempDirectory(root);
     }

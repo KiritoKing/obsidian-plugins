@@ -6,4 +6,4 @@ The browser sends `hello` before the host creates a channel socket. A socket cli
 
 `resolve-title`, `ping` and `cancel` are the initial operations. All replies are correlated by request ID. Adding methods or changing the public error contract requires coordinated changes to all packages.
 
-`./paths` contains host-side path helpers and must not be imported into the browser bundle. `./identity` contains only a public extension key and its derived ID, never a private key.
+`./paths` contains host-side path helpers and must not be imported into the browser bundle. `./identity` contains the fixed development and release extension IDs, their exact Native Messaging origins, and public keys only; the development ID remains unchanged, and no private key is included.

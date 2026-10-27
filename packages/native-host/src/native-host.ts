@@ -11,7 +11,11 @@ import {
   type NativeHello,
   type NativeStatus,
 } from "@chlrc/browser-profile-title-protocol";
-import { EXTENSION_ID } from "@chlrc/browser-profile-title-protocol/identity";
+import {
+  EXTENSION_ID,
+  extensionIdFromNativeMessagingOrigin,
+  type SupportedExtensionId,
+} from "@chlrc/browser-profile-title-protocol/identity";
 import {
   BridgeStartError,
   createBridgeServer,
@@ -19,8 +23,6 @@ import {
   type BridgeServerHandle,
 } from "./bridge-server.ts";
 import { SAFE_ERROR_MESSAGES } from "./errors.ts";
-
-const EXPECTED_ORIGIN = `chrome-extension://${EXTENSION_ID}/`;
 
 export type NativeHostOptions = {
   argv?: string[];
@@ -100,8 +102,11 @@ export async function runNativeHost(
   const output = options.output ?? process.stdout;
   const errorOutput = options.errorOutput ?? process.stderr;
 
-  const originValid = argv.length === 1 && argv[0] === EXPECTED_ORIGIN;
-  if (!originValid) {
+  const launchExtensionId =
+    argv.length === 1
+      ? extensionIdFromNativeMessagingOrigin(argv[0])
+      : undefined;
+  if (!launchExtensionId) {
     try {
       await writeFrame(
         output,
@@ -157,7 +162,10 @@ export async function runNativeHost(
   const handleMessage = async (value: unknown) => {
     if (ending) return;
     if (!helloAccepted) {
-      if (!isNativeHelloFrame(value) || value.extensionId !== EXTENSION_ID) {
+      if (
+        !isNativeHelloFrame(value) ||
+        value.extensionId !== launchExtensionId
+      ) {
         await finish(
           1,
           "AUTHENTICATION_FAILED",
@@ -281,6 +289,8 @@ export async function runNativeHost(
   return endCode;
 }
 
-export function nativeMessagingOrigin(): string {
-  return EXPECTED_ORIGIN;
+export function nativeMessagingOrigin(
+  extensionId: SupportedExtensionId = EXTENSION_ID,
+): string {
+  return `chrome-extension://${extensionId}/`;
 }

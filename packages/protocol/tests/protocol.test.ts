@@ -9,6 +9,17 @@ import {
   parseWebUrl,
   validChannel,
 } from "../src/index.ts";
+import {
+  DEVELOPMENT_NATIVE_MESSAGING_ORIGIN,
+  EXTENSION_ID,
+  RELEASE_EXTENSION_ID,
+  RELEASE_NATIVE_MESSAGING_ORIGIN,
+  SUPPORTED_EXTENSION_IDS,
+  SUPPORTED_NATIVE_MESSAGING_ORIGINS,
+  extensionIdFromNativeMessagingOrigin,
+  isSupportedExtensionId,
+  nativeMessagingOriginForExtensionId,
+} from "../src/identity.ts";
 
 describe("framed JSON", () => {
   test("reassembles fragmented Unicode and multiple replies", () => {
@@ -108,5 +119,41 @@ describe("request boundaries", () => {
     expect(isConnectionInfo(connection)).toBe(true);
     expect(isConnectionInfo({ ...connection, token: "short" })).toBe(false);
     expect(isBridgeRequest(connection)).toBe(false);
+  });
+});
+
+describe("fixed extension identities", () => {
+  test("admits exactly the development and release identities and origins", () => {
+    expect(EXTENSION_ID).toBe("ligookeeainjhapkanfmgabeenmeljbn");
+    expect(RELEASE_EXTENSION_ID).toBe("fgcokpikjhdcomfiingeapogdkgaalol");
+    expect(SUPPORTED_EXTENSION_IDS).toEqual([
+      EXTENSION_ID,
+      RELEASE_EXTENSION_ID,
+    ]);
+    expect(SUPPORTED_NATIVE_MESSAGING_ORIGINS).toEqual([
+      DEVELOPMENT_NATIVE_MESSAGING_ORIGIN,
+      RELEASE_NATIVE_MESSAGING_ORIGIN,
+    ]);
+
+    for (const extensionId of SUPPORTED_EXTENSION_IDS) {
+      expect(isSupportedExtensionId(extensionId)).toBe(true);
+      expect(
+        extensionIdFromNativeMessagingOrigin(
+          nativeMessagingOriginForExtensionId(extensionId),
+        ),
+      ).toBe(extensionId);
+    }
+
+    const unknownId = "a".repeat(32);
+    expect(isSupportedExtensionId(unknownId)).toBe(false);
+    expect(nativeMessagingOriginForExtensionId(unknownId)).toBeUndefined();
+    expect(
+      extensionIdFromNativeMessagingOrigin(`chrome-extension://${unknownId}/`),
+    ).toBeUndefined();
+    expect(
+      extensionIdFromNativeMessagingOrigin(
+        `chrome-extension://${EXTENSION_ID}/extra`,
+      ),
+    ).toBeUndefined();
   });
 });

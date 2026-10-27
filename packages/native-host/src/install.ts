@@ -11,13 +11,16 @@ import {
   unlink,
 } from "node:fs/promises";
 import { homedir } from "node:os";
-import { basename, join, resolve } from "node:path";
+import { basename, isAbsolute, join, resolve } from "node:path";
 import {
   HOST_NAME,
   isConnectionInfo,
   validChannel,
 } from "@chlrc/browser-profile-title-protocol";
-import { EXTENSION_ID } from "@chlrc/browser-profile-title-protocol/identity";
+import {
+  DEVELOPMENT_NATIVE_MESSAGING_ORIGIN,
+  SUPPORTED_NATIVE_MESSAGING_ORIGINS,
+} from "@chlrc/browser-profile-title-protocol/identity";
 import {
   SOCKET_BASENAME,
   channelDirectory,
@@ -69,6 +72,8 @@ export type InstallResult = {
 const BUILD_RECEIPT_SUFFIX = ".build-receipt.json";
 const BUILD_RECEIPT_FORMAT = "chlrc-native-host-standalone-v1" as const;
 const NATIVE_HOST_FILE = `${HOST_NAME}.json`;
+const NATIVE_HOST_DESCRIPTION =
+  "Local browser profile title bridge for Obsidian";
 
 function sha256File(path: string): Promise<string> {
   return new Promise((resolveHash, rejectHash) => {
@@ -189,7 +194,9 @@ async function validateStandaloneBinary(
   return absolute;
 }
 
-function exactManifest(value: unknown): value is NativeHostManifest {
+function hasNativeHostManifestShape(
+  value: unknown,
+): value is NativeHostManifest {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const manifest = value as Record<string, unknown>;
   const keys = Object.keys(manifest).sort();
@@ -205,12 +212,62 @@ function exactManifest(value: unknown): value is NativeHostManifest {
     keys.every((key, index) => key === expected[index]) &&
     manifest.name === HOST_NAME &&
     manifest.type === "stdio" &&
-    typeof manifest.description === "string" &&
+    manifest.description === NATIVE_HOST_DESCRIPTION &&
     typeof manifest.path === "string" &&
-    Array.isArray(manifest.allowed_origins) &&
-    manifest.allowed_origins.length === 1 &&
-    manifest.allowed_origins[0] === `chrome-extension://${EXTENSION_ID}/`
+    isAbsolute(manifest.path) &&
+    Array.isArray(manifest.allowed_origins)
   );
+}
+
+function hasExpectedOrigins(
+  origins: string[],
+  expected: readonly string[],
+): boolean {
+  return (
+    origins.length === expected.length &&
+    origins.every((origin, index) => origin === expected[index])
+  );
+}
+
+function isOwnedManifest(value: unknown): value is NativeHostManifest {
+  if (!hasNativeHostManifestShape(value)) return false;
+  return (
+    hasExpectedOrigins(value.allowed_origins, [
+      DEVELOPMENT_NATIVE_MESSAGING_ORIGIN,
+    ]) ||
+    hasExpectedOrigins(
+      value.allowed_origins,
+      SUPPORTED_NATIVE_MESSAGING_ORIGINS,
+    )
+  );
+}
+
+function exactManifest(value: unknown): value is NativeHostManifest {
+  return (
+    isOwnedManifest(value) &&
+    hasExpectedOrigins(
+      value.allowed_origins,
+      SUPPORTED_NATIVE_MESSAGING_ORIGINS,
+    )
+  );
+}
+
+async function assertReplaceableManifest(path: string): Promise<string> {
+  const contents = await readFile(path, "utf8");
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(contents);
+  } catch {
+    throw new Error(
+      "The existing Native Messaging manifest is not managed by this host",
+    );
+  }
+  if (!isOwnedManifest(parsed)) {
+    throw new Error(
+      "The existing Native Messaging manifest is not managed by this host",
+    );
+  }
+  return contents;
 }
 
 export async function installNativeMessagingManifest(
@@ -240,10 +297,10 @@ export async function installNativeMessagingManifest(
   await assertNoSymlinkComponents(manifestPath);
   const manifest: NativeHostManifest = {
     name: HOST_NAME,
-    description: "Local browser profile title bridge for Obsidian",
+    description: NATIVE_HOST_DESCRIPTION,
     path: absoluteBinary,
     type: "stdio",
-    allowed_origins: [`chrome-extension://${EXTENSION_ID}/`],
+    allowed_origins: [...SUPPORTED_NATIVE_MESSAGING_ORIGINS],
   };
   const existing = await lstatIfExists(manifestPath);
   if (existing?.isSymbolicLink() || (existing && !existing.isFile())) {
@@ -256,6 +313,8 @@ export async function installNativeMessagingManifest(
       "An existing Native Messaging manifest requires explicit --replace",
     );
   }
+  if (existing && options.replace)
+    await assertReplaceableManifest(manifestPath);
   if (options.dryRun) {
     return {
       manifestPath,
@@ -301,7 +360,11 @@ export async function installNativeMessagingManifest(
         "An existing Native Messaging manifest requires explicit --replace",
       );
     }
-    if (latest) targetIdentity = identityOf(latest);
+    let targetContents: string | undefined;
+    if (latest) {
+      targetContents = await assertReplaceableManifest(manifestPath);
+      targetIdentity = identityOf(latest);
+    }
 
     tempPath = join(
       manifestDirectory,
@@ -317,10 +380,12 @@ export async function installNativeMessagingManifest(
 
     if (targetIdentity) {
       const beforeReplace = await lstatIfExists(manifestPath);
+      const beforeContents = await readFile(manifestPath, "utf8");
       if (
         !beforeReplace ||
         !sameIdentity(targetIdentity, beforeReplace) ||
-        beforeReplace.isSymbolicLink()
+        beforeReplace.isSymbolicLink() ||
+        beforeContents !== targetContents
       ) {
         throw new Error(
           "The existing Native Messaging manifest changed during installation",

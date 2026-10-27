@@ -2,7 +2,7 @@
 
 `@chlrc/browser-profile-title-host` connects the Chrome extension's Native Messaging stdio to a user-local Unix socket used by the Obsidian plugin. It forwards only validated title bridge requests and responses. It has no shell, JavaScript, cookie, profile-database, or arbitrary RPC interface.
 
-The host requires the fixed extension origin `chrome-extension://ligookeeainjhapkanfmgabeenmeljbn/` and a matching version 1 `hello` frame before it creates a socket. Native Messaging and the socket both use the shared four-byte little-endian length plus UTF-8 JSON framing, capped at 1 MiB. The host handles `ping` locally, namespaces request IDs across clients, enforces bounded timeouts, and sends cancellation frames when requests time out or a socket client disconnects.
+The host allows exactly the development origin `chrome-extension://ligookeeainjhapkanfmgabeenmeljbn/` and release origin `chrome-extension://fgcokpikjhdcomfiingeapogdkgaalol/`. Before creating a socket, it requires a version 1 `hello` whose extension ID matches the origin Chrome passed to the process. Unknown origins, unknown IDs, and mismatched origin/ID pairs are rejected. Native Messaging and the socket both use the shared four-byte little-endian length plus UTF-8 JSON framing, capped at 1 MiB. The host handles `ping` locally, namespaces request IDs across clients, enforces bounded timeouts, and sends cancellation frames when requests time out or a socket client disconnects.
 
 ## Runtime state
 
@@ -30,7 +30,7 @@ browser-profile-title-host install --binary <standalone-host> --browser edge
 browser-profile-title-host install --binary <standalone-host> --browser chrome --replace
 ```
 
-`install --dry-run` validates the standalone binary and prints the manifest it would write. `--state-dir` selects a browser user-data root, such as an isolated persistent profile used for testing. Without it, the standard per-user Chrome, Chromium, or Edge data directory is selected for macOS or Linux. Installation writes only the user-level `NativeMessagingHosts/com.chlrc.browser_profile_title.json` manifest; it does not copy or overwrite the executable. Existing manifests require explicit `--replace`. Writes are atomic, user-readable only, and checked by readback. This package implementation has not installed a manifest into a real browser profile.
+`install --dry-run` validates the standalone binary and prints the manifest it would write. The manifest lists exactly the development and release origins above. `--state-dir` selects a browser user-data root, such as an isolated persistent profile used for testing. Without it, the standard per-user Chrome, Chromium, or Edge data directory is selected for macOS or Linux. Installation writes only the user-level `NativeMessagingHosts/com.chlrc.browser_profile_title.json` manifest; it does not copy or overwrite the executable. Existing manifests require explicit `--replace`; replacement accepts only this host's known manifest shape, including the legacy development-only origin list, and upgrades it to both origins. Writes are atomic, user-readable only, and checked by readback. This package implementation has not installed a manifest into a real browser profile.
 
 Chrome launches the executable with its extension origin as the only argument. `run <origin>` is also available for local fixtures. On stdin close, parse failure, or process termination, the host cancels outstanding browser work, closes client sockets, and removes only the socket, connection file, lock, and empty directories it created.
 

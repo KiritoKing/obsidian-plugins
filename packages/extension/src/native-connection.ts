@@ -8,7 +8,7 @@ import {
   type BridgeResponse,
   type ErrorCode,
 } from "@chlrc/browser-profile-title-protocol";
-import { EXTENSION_ID } from "@chlrc/browser-profile-title-protocol/identity";
+import { isSupportedExtensionId } from "@chlrc/browser-profile-title-protocol/identity";
 import { createChromeTitlePlatform } from "./chrome-platform";
 import { TitleRequestQueue } from "./request-queue";
 import { EXPLICIT_SITE_ORIGINS_KEY, explicitSiteOrigins } from "./site-consent";
@@ -131,7 +131,7 @@ export class NativeConnectionController {
       channel: this.view.channel,
     });
 
-    if (chrome.runtime.id !== EXTENSION_ID) {
+    if (!isSupportedExtensionId(chrome.runtime.id)) {
       this.setFailure(
         generation,
         "BRIDGE_UNAVAILABLE",
