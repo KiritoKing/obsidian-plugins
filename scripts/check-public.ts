@@ -20,12 +20,113 @@ const forbiddenNames = new Set([
   "Login Data",
   "Local State",
 ]);
+const maximumPublicIconPngBytes = 256 * 1024;
+const maximumPublicMasterPngBytes = 2 * 1024 * 1024;
+const publicPngAssets = new Map<
+  string,
+  { expectedSize: number; maximumBytes: number; sizeLimit: string }
+>([
+  [
+    "packages/extension/assets/browser-profile-title-bridge-master.png",
+    {
+      expectedSize: 1254,
+      maximumBytes: maximumPublicMasterPngBytes,
+      sizeLimit: "2 MiB",
+    },
+  ],
+  [
+    "packages/extension/public/icons/icon-16.png",
+    {
+      expectedSize: 16,
+      maximumBytes: maximumPublicIconPngBytes,
+      sizeLimit: "256 KiB",
+    },
+  ],
+  [
+    "packages/extension/public/icons/icon-32.png",
+    {
+      expectedSize: 32,
+      maximumBytes: maximumPublicIconPngBytes,
+      sizeLimit: "256 KiB",
+    },
+  ],
+  [
+    "packages/extension/public/icons/icon-48.png",
+    {
+      expectedSize: 48,
+      maximumBytes: maximumPublicIconPngBytes,
+      sizeLimit: "256 KiB",
+    },
+  ],
+  [
+    "packages/extension/public/icons/icon-128.png",
+    {
+      expectedSize: 128,
+      maximumBytes: maximumPublicIconPngBytes,
+      sizeLimit: "256 KiB",
+    },
+  ],
+]);
+const pngSignature = Buffer.from([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+]);
 const secretPatterns = [
   /\bgh[pousr]_[A-Za-z0-9]{30,}\b/,
   /\bgithub_pat_[A-Za-z0-9_]{40,}\b/,
   /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/,
   /\/(?:Users|home)\/[A-Za-z][^\s/"']+\//,
 ];
+
+function pngCrc32(content: Uint8Array): number {
+  let crc = 0xffffffff;
+  for (const byte of content) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = (crc >>> 1) ^ ((crc & 1) === 1 ? 0xedb88320 : 0);
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function publicPngIssues(
+  path: string,
+  content: Buffer,
+  expectedSize: number,
+  maximumBytes: number,
+  sizeLimit: string,
+): string[] {
+  const issue = (message: string): string[] => [`${path}: ${message}`];
+  if (content.byteLength > maximumBytes) {
+    return issue(`public PNG exceeds ${sizeLimit}`);
+  }
+  if (
+    content.byteLength < 33 ||
+    !content.subarray(0, pngSignature.length).equals(pngSignature) ||
+    content.readUInt32BE(8) !== 13 ||
+    content.toString("ascii", 12, 16) !== "IHDR"
+  ) {
+    return issue("invalid PNG signature or IHDR header");
+  }
+
+  const width = content.readUInt32BE(16);
+  const height = content.readUInt32BE(20);
+  if (width !== expectedSize || height !== expectedSize) {
+    return issue(`expected ${expectedSize} × ${expectedSize} PNG dimensions`);
+  }
+  if (
+    content[24] !== 8 ||
+    content[25] !== 6 ||
+    content[26] !== 0 ||
+    content[27] !== 0 ||
+    content[28] > 1
+  ) {
+    return issue("public icon must use 8-bit RGBA PNG encoding");
+  }
+  if (content.readUInt32BE(29) !== pngCrc32(content.subarray(12, 29))) {
+    return issue("invalid PNG IHDR checksum");
+  }
+  return [];
+}
 
 export function publicRegistryIssues(content: string): string[] {
   const issues: string[] = [];
@@ -91,6 +192,19 @@ export async function publicSourceIssues(directory: string): Promise<string[]> {
         continue;
       }
       const content = await readFile(file);
+      const publicPngAsset = publicPngAssets.get(display);
+      if (publicPngAsset !== undefined) {
+        issues.push(
+          ...publicPngIssues(
+            display,
+            content,
+            publicPngAsset.expectedSize,
+            publicPngAsset.maximumBytes,
+            publicPngAsset.sizeLimit,
+          ),
+        );
+        continue;
+      }
       if (content.includes(0)) {
         issues.push(`${display}: unexpected binary source file`);
         continue;

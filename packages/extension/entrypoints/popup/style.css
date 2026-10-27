@@ -20,24 +20,10 @@ main {
 }
 
 .brand-mark {
-  display: grid;
+  display: block;
   width: 39px;
   height: 39px;
   flex: 0 0 auto;
-  place-items: center;
-  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
-  border-radius: 12px;
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-
-.brand-mark svg {
-  width: 21px;
-  height: 21px;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 1.6;
 }
 
 .brand-copy {

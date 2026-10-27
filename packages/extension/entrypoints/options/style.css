@@ -18,24 +18,10 @@ main {
 }
 
 .brand-mark {
-  display: grid;
+  display: block;
   width: 48px;
   height: 48px;
   flex: 0 0 auto;
-  place-items: center;
-  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
-  border-radius: 15px;
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-
-.brand-mark svg {
-  width: 25px;
-  height: 25px;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 1.6;
 }
 
 .page-header .eyebrow {
