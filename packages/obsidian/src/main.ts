@@ -15,6 +15,7 @@ import {
   normalizeWebUrl,
 } from "./checkif";
 import { BridgeClient, BridgeClientError } from "./bridge-client";
+import { resolveLegacyTitle } from "./legacy-title-resolver";
 import {
   BrowserProfileTitleSettingTab,
   DEFAULT_SETTINGS,
@@ -26,6 +27,13 @@ import {
   resolvedTitleReplacement,
   safeReplacementRange,
 } from "./title-format";
+import {
+  INITIAL_RESOLVER_STATUS,
+  resolveTitleWithFallback,
+  type ResolverStatusSnapshot,
+} from "./title-resolver";
+
+export type { ResolverStatusSnapshot } from "./title-resolver";
 
 interface ActiveEditorSnapshot {
   editor: Editor;
@@ -34,6 +42,9 @@ interface ActiveEditorSnapshot {
 
 export default class BrowserProfileLinkTitle extends Plugin {
   settings: BrowserProfileTitleSettings = { ...DEFAULT_SETTINGS };
+  private resolverStatus: ResolverStatusSnapshot = {
+    ...INITIAL_RESOLVER_STATUS,
+  };
 
   async onload(): Promise<void> {
     await this.loadSettings();
@@ -168,8 +179,9 @@ export default class BrowserProfileLinkTitle extends Plugin {
     if (!context) return;
 
     try {
+      const title = await this.resolveTitle(url);
       const replacement = resolvedTitleReplacement(
-        await this.createBridgeClient().resolveTitle(url),
+        title ?? "",
         url,
         this.settings.maximumTitleLength,
       );
@@ -212,6 +224,14 @@ export default class BrowserProfileLinkTitle extends Plugin {
     await this.saveData({ ...this.settings });
   }
 
+  getResolverStatus(): ResolverStatusSnapshot {
+    return { ...this.resolverStatus };
+  }
+
+  async checkBrowserConnection(): Promise<boolean> {
+    return this.createBridgeClient().ping();
+  }
+
   private async insertUrlThenResolve(
     editor: Editor,
     url: string,
@@ -231,8 +251,9 @@ export default class BrowserProfileLinkTitle extends Plugin {
     if (!context) return;
 
     try {
+      const title = await this.resolveTitle(url);
       const replacement = resolvedTitleReplacement(
-        await this.createBridgeClient().resolveTitle(url),
+        title ?? "",
         url,
         this.settings.maximumTitleLength,
       );
@@ -275,6 +296,20 @@ export default class BrowserProfileLinkTitle extends Plugin {
 
   private createBridgeClient(): BridgeClient {
     return new BridgeClient(this.settings.channel, this.settings.timeoutMs);
+  }
+
+  private async resolveTitle(url: string): Promise<string | null> {
+    const result = await resolveTitleWithFallback(url, {
+      browserTitle: (requestedUrl) =>
+        this.createBridgeClient().resolveTitle(requestedUrl),
+      legacyTitle: resolveLegacyTitle,
+      fallbackEnabled: this.settings.legacyFallbackEnabled,
+      timeoutMs: this.settings.timeoutMs,
+      onStatus: (status) => {
+        this.resolverStatus = { ...status };
+      },
+    });
+    return result?.title ?? null;
   }
 
   private isBlacklisted(url: string): boolean {

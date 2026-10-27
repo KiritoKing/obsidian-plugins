@@ -1,9 +1,9 @@
 {
   "id": "browser-profile-link-title",
   "name": "Browser Profile Link Title",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "minAppVersion": "1.0.0",
-  "description": "Fetch page titles through the local browser profile bridge.",
+  "description": "Browser-first page titles with current-site access and original scraper fallback.",
   "author": "CHLRC",
   "isDesktopOnly": true
 }

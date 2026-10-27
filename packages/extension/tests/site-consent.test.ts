@@ -62,24 +62,18 @@ describe("explicit site approval", () => {
     ).toEqual(["https://example.test/*"]);
   });
 
-  it("requires both Chrome's exact permission and extension approval", () => {
+  it("requires Chrome access coverage and an exact extension approval", () => {
+    expect(isSiteAuthorized(true, [], "https://example.test/*")).toBe(false);
     expect(
       isSiteAuthorized(
-        ["http://*/*"],
+        false,
         ["https://example.test/*"],
         "https://example.test/*",
       ),
     ).toBe(false);
     expect(
       isSiteAuthorized(
-        [],
-        ["https://example.test/*"],
-        "https://example.test/*",
-      ),
-    ).toBe(false);
-    expect(
-      isSiteAuthorized(
-        ["https://example.test/*"],
+        true,
         ["https://example.test/*"],
         "https://example.test/*",
       ),

@@ -6,6 +6,14 @@ The native host accepts a fixed, versioned protocol. It does not provide arbitra
 
 The same operating-system user and installed Obsidian plugins already have broad local access. Socket permissions and pairing prevent accidental cross-profile routing and unauthenticated local clients; they are not a sandbox against a compromised user account.
 
+## Original-scraper fallback
+
+The browser-first resolver can fall back to the title-scraping behavior derived from the pinned Auto Link Title upstream. This path runs inside Obsidian, not through the local bridge. It may request page HTML or load a hidden renderer, but returns only a title and does not store page bodies.
+
+The fallback never receives Chrome cookies or profile storage. Hidden renderers use independent in-memory sessions, normal web security, context isolation and sandboxing with Node integration disabled. New windows, downloads and non-HTTP(S) navigation are blocked, and task-owned windows and listeners are cleaned up on completion or timeout. The original plugin's service credentials are not migrated, and no LinkPreview or new external title service is enabled.
+
+Current-site grants still require a user click and Chrome's optional-permission flow. The displayed site must also have an exact explicit approval in the extension; a broad Chrome permission alone is not an approval. A legacy fallback does not grant browser access or reuse its authenticated session.
+
 Use synthetic fixtures for tests. Do not attach browser profiles, pairing documents, full URLs for private resources, page content or credentials to public issues.
 
 Remote source publication, local fixture tests, real-profile verification and store publication are separate proof and authorization boundaries. See `VALIDATION.md` for what has actually been tested.

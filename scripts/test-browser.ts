@@ -30,6 +30,7 @@ import {
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const builtExtension = join(root, "packages/extension/.output/chrome-mv3");
 const hostBinary = join(root, ".output/native-host/browser-profile-title-host");
+const uiArtifacts = join(root, ".output/ui-title-access");
 const channel = `bt-${crypto.randomUUID().slice(0, 6)}`;
 const runtimeDirectory = channelDirectory(channel);
 const descriptorPath = connectionFile(channel);
@@ -135,6 +136,52 @@ async function tabCount(options: Page): Promise<number> {
   return options.evaluate(async () => (await chrome.tabs.query({})).length);
 }
 
+async function openPopupFixture(
+  browserContext: BrowserContext,
+  options: Page,
+  activePage: Page,
+): Promise<Page> {
+  await activePage.bringToFront();
+  const currentTab = await options.evaluate(async (url) => {
+    return (await chrome.tabs.query({})).find((tab) => tab.url === url);
+  }, activePage.url());
+  assert.ok(currentTab, "The fixture page must be a real browser tab");
+  const popup = await browserContext.newPage();
+  // Headless Chromium does not expose the action-popup surface as a Playwright
+  // page. Render the production popup as a tab with only its active-tab query
+  // adapted to the real fixture tab. Permission, storage, title reading and
+  // Native Messaging APIs remain real; toolbar activation is not asserted.
+  await popup.addInitScript((tab: chrome.tabs.Tab) => {
+    const query = chrome.tabs.query.bind(chrome.tabs);
+    Object.defineProperty(chrome.tabs, "query", {
+      value: (info: chrome.tabs.QueryInfo) =>
+        info.active && info.lastFocusedWindow
+          ? Promise.resolve([tab])
+          : query(info),
+    });
+  }, currentTab);
+  await popup.setViewportSize({ width: 380, height: 760 });
+  await popup.goto(`chrome-extension://${EXTENSION_ID}/popup.html`);
+  await popup.locator("#grant-site").waitFor({ state: "visible" });
+  return popup;
+}
+
+async function captureUi(page: Page, name: string): Promise<void> {
+  await mkdir(uiArtifacts, { recursive: true });
+  assert.equal(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+    true,
+    `${name} must not overflow horizontally`,
+  );
+  await page.screenshot({
+    path: join(uiArtifacts, `${name}.png`),
+    fullPage: true,
+    animations: "disabled",
+  });
+}
+
 try {
   assert.equal(
     await missing(runtimeDirectory),
@@ -238,22 +285,88 @@ try {
   );
 
   const client = new BridgeClient(channel, 8_000);
+  assert.equal(await client.ping(), true);
   await expectRemote(client, `${origin}/document`, "HOST_PERMISSION_REQUIRED");
-  await options.locator("#site-url").fill(`${origin}/document`);
-  await options.locator("#grant-site").click();
-  await waitFor(
-    async () =>
-      (await options.locator("#permission-status").textContent())?.includes(
-        "Site access granted",
-      ) === true,
-    "The extension did not record precise site consent",
-  );
 
   const existing = await context.newPage();
   await existing.goto(`${origin}/document`);
   await existing.waitForFunction(
     () => document.title === "Fixture: authenticated [document]",
   );
+  const popup = await openPopupFixture(context, options, existing);
+  await waitFor(
+    async () => (await popup.locator("#site-origin").textContent()) === origin,
+    "The popup did not identify the current site",
+  );
+  assert.equal(
+    await popup.locator("#site-badge").textContent(),
+    "Not authorized",
+  );
+  assert.equal(await popup.locator("#grant-site").isEnabled(), true);
+  assert.equal(
+    (await popup.locator("#site-origin").textContent())?.includes("/document"),
+    false,
+    "The site card must display only the origin",
+  );
+  await popup.emulateMedia({ colorScheme: "light" });
+  await captureUi(popup, "popup-needs-approval-light");
+  await popup.locator("#grant-site").click();
+  await waitFor(
+    async () =>
+      (await popup.locator("#site-badge").textContent()) === "Authorized",
+    "Grant this site did not verify both permission layers",
+  );
+  assert.equal(await popup.locator("#grant-site").isEnabled(), false);
+  await popup.emulateMedia({ colorScheme: "dark" });
+  await captureUi(popup, "popup-authorized-dark");
+  await popup.close();
+  await waitFor(
+    async () =>
+      (await options.locator("#site-list").textContent())?.includes(
+        "Extension approval: Granted",
+      ) === true,
+    "The settings page did not refresh after granting from the popup",
+  );
+  console.log("PASS current-site popup authorization and live settings status");
+
+  await options.locator("#site-list button").first().click();
+  await expectRemote(client, `${origin}/document`, "HOST_PERMISSION_REQUIRED");
+  await options.locator("#site-url").fill(`${origin}/document`);
+  await options.locator("#site-url").press("Enter");
+  await waitFor(
+    async () =>
+      (await options.locator("#site-list").textContent())?.includes(
+        "Extension approval: Granted",
+      ) === true,
+    "The extension did not record precise site consent",
+  );
+  assert.match(
+    (await options.locator("#site-list").textContent()) ?? "",
+    /Chrome access: Available/,
+  );
+  await options.setViewportSize({ width: 1180, height: 900 });
+  await options.emulateMedia({ colorScheme: "light" });
+  await captureUi(options, "settings-authorized-light");
+  await options.emulateMedia({ colorScheme: "dark" });
+  await captureUi(options, "settings-authorized-dark");
+  await options.setViewportSize({ width: 390, height: 844 });
+  await captureUi(options, "settings-mobile-dark");
+  await options.setViewportSize({ width: 1180, height: 900 });
+
+  const restricted = await openPopupFixture(context, options, options);
+  await waitFor(
+    async () =>
+      (await restricted.locator("#site-badge").textContent()) ===
+      "Restricted page",
+    "The popup did not explain restricted pages",
+  );
+  assert.equal(await restricted.locator("#grant-site").isEnabled(), false);
+  assert.equal(await restricted.locator("#read-title").isEnabled(), false);
+  await restricted.close();
+  console.log(
+    "PASS restricted pages, responsive settings and light/dark layouts",
+  );
+
   const beforeCount = await tabCount(options);
   const beforeRequests = authenticatedRequests.get("/document") ?? 0;
   assert.equal(

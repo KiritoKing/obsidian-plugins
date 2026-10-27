@@ -12,6 +12,7 @@ import { EXTENSION_ID } from "@chlrc/browser-profile-title-protocol/identity";
 import { createChromeTitlePlatform } from "./chrome-platform";
 import { TitleRequestQueue } from "./request-queue";
 import { EXPLICIT_SITE_ORIGINS_KEY, explicitSiteOrigins } from "./site-consent";
+import { retainChromeCoveredApprovals } from "./site-access";
 import { resolveTitle } from "./title-resolution";
 
 const CHANNEL_KEY = "channel";
@@ -94,17 +95,19 @@ export class NativeConnectionController {
     return true;
   }
 
-  permissionsRemoved(origins: string[]): void {
-    this.queue?.failForRemovedOrigins(origins);
-    void Promise.all([
-      chrome.permissions.getAll(),
-      chrome.storage.local.get(EXPLICIT_SITE_ORIGINS_KEY),
-    ])
-      .then(([permissions, stored]) => {
-        const grantedOrigins = new Set(permissions.origins ?? []);
-        const remaining = explicitSiteOrigins(
-          stored[EXPLICIT_SITE_ORIGINS_KEY],
-        ).filter((origin) => grantedOrigins.has(origin));
+  permissionsRemoved(_origins: string[]): void {
+    void chrome.storage.local
+      .get(EXPLICIT_SITE_ORIGINS_KEY)
+      .then(async (stored) => {
+        const previous = explicitSiteOrigins(stored[EXPLICIT_SITE_ORIGINS_KEY]);
+        const remaining = await retainChromeCoveredApprovals(
+          previous,
+          (pattern) => chrome.permissions.contains({ origins: [pattern] }),
+        );
+        const noLongerCovered = previous.filter(
+          (pattern) => !remaining.includes(pattern),
+        );
+        this.queue?.failForRemovedOrigins(noLongerCovered);
         return chrome.storage.local.set({
           [EXPLICIT_SITE_ORIGINS_KEY]: remaining,
         });

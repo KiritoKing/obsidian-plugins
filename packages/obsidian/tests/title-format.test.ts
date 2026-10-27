@@ -81,6 +81,7 @@ describe("settings persistence", () => {
       timeoutMs: 99_999,
       maximumTitleLength: -1,
       enhanceDefaultPaste: false,
+      legacyFallbackEnabled: false,
       token: "must-not-be-kept",
       socketPath: "/private/socket",
     });
@@ -91,14 +92,23 @@ describe("settings persistence", () => {
       DEFAULT_SETTINGS.maximumTitleLength,
     );
     expect(settings.enhanceDefaultPaste).toBe(false);
+    expect(settings.legacyFallbackEnabled).toBe(false);
     expect(Object.keys(settings).sort()).toEqual([
       "channel",
       "enhanceDefaultPaste",
       "enhanceDropEvents",
+      "legacyFallbackEnabled",
       "maximumTitleLength",
       "shouldPreserveSelectionAsTitle",
       "timeoutMs",
       "websiteBlacklist",
     ]);
+  });
+
+  test("enables the legacy fallback for new and older settings records", () => {
+    expect(DEFAULT_SETTINGS.legacyFallbackEnabled).toBe(true);
+    expect(
+      sanitizeSettings({ enhanceDropEvents: false }).legacyFallbackEnabled,
+    ).toBe(true);
   });
 });

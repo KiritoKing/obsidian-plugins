@@ -17,6 +17,7 @@ import {
   type BridgeResponse,
   type ConnectionInfo,
   type ErrorCode,
+  type ResolveTitleRequest,
   validChannel,
 } from "@chlrc/browser-profile-title-protocol";
 import {
@@ -63,20 +64,50 @@ export class BridgeClient {
       this.channel,
       this.baseDirectory,
     );
-    return this.exchange(connection, url, parsedUrl.href);
+    const request: ResolveTitleRequest = {
+      version: PROTOCOL_VERSION,
+      type: "resolve-title",
+      id: randomBytes(18).toString("base64url"),
+      url,
+      timeoutMs: isTimeout(this.timeoutMs)
+        ? this.timeoutMs
+        : DEFAULT_TIMEOUT_MS,
+    };
+    const result = await this.exchange(connection, request, parsedUrl.href);
+    if (typeof result !== "string") throw new BridgeClientError("protocol");
+    return result;
+  }
+
+  async ping(): Promise<boolean> {
+    try {
+      const connection = await readBridgeConnection(
+        this.channel,
+        this.baseDirectory,
+      );
+      const result = await this.exchange(connection, {
+        version: PROTOCOL_VERSION,
+        type: "ping",
+        id: randomBytes(18).toString("base64url"),
+      });
+      return result === true;
+    } catch {
+      return false;
+    }
   }
 
   private exchange(
     connection: ConnectionInfo,
-    requestedUrl: string,
-    canonicalUrl: string,
-  ): Promise<string> {
-    const timeoutMs = isTimeout(this.timeoutMs)
-      ? this.timeoutMs
-      : DEFAULT_TIMEOUT_MS;
-    const requestId = randomBytes(18).toString("base64url");
+    request: ResolveTitleRequest | { version: 1; type: "ping"; id: string },
+    canonicalUrl?: string,
+  ): Promise<string | true> {
+    const timeoutMs =
+      request.type === "resolve-title"
+        ? request.timeoutMs
+        : isTimeout(this.timeoutMs)
+          ? this.timeoutMs
+          : DEFAULT_TIMEOUT_MS;
 
-    return new Promise<string>((resolveResult, rejectResult) => {
+    return new Promise<string | true>((resolveResult, rejectResult) => {
       let phase: "authentication" | "response" = "authentication";
       let settled = false;
       let wroteRequest = false;
@@ -87,13 +118,16 @@ export class BridgeClient {
         timeoutMs,
       );
 
-      const finish = (error?: BridgeClientError, title?: string): void => {
+      const finish = (
+        error?: BridgeClientError,
+        result?: string | true,
+      ): void => {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
         socket.destroy();
         if (error) rejectResult(error);
-        else if (title !== undefined) resolveResult(title);
+        else if (result !== undefined) resolveResult(result);
         else rejectResult(new BridgeClientError("protocol"));
       };
 
@@ -122,30 +156,32 @@ export class BridgeClient {
               }
               phase = "response";
               wroteRequest = true;
-              socket.write(
-                encodeFrame({
-                  version: PROTOCOL_VERSION,
-                  type: "resolve-title",
-                  id: requestId,
-                  url: requestedUrl,
-                  timeoutMs,
-                }),
-              );
+              socket.write(encodeFrame(request));
               continue;
             }
 
             if (
               !wroteRequest ||
               !isBridgeResponse(frame) ||
-              frame.id !== requestId
+              frame.id !== request.id
             ) {
               finish(new BridgeClientError("protocol"));
               return;
             }
-            finish(
-              responseError(frame) ?? undefined,
-              responseTitle(frame, canonicalUrl),
-            );
+            const error = responseError(frame);
+            if (error) {
+              finish(error);
+              return;
+            }
+            if (request.type === "ping") {
+              if (!isPongResponse(frame)) {
+                finish(new BridgeClientError("protocol"));
+                return;
+              }
+              finish(undefined, true);
+              return;
+            }
+            finish(undefined, responseTitle(frame, canonicalUrl ?? ""));
             return;
           }
           if (decoder.pendingBytes > MAX_FRAME_BYTES + 4) {
@@ -243,6 +279,14 @@ function responseError(response: BridgeResponse): BridgeClientError | null {
   return response.ok
     ? null
     : new BridgeClientError("remote", response.error.code);
+}
+
+function isPongResponse(response: BridgeResponse): boolean {
+  if (!response.ok) return false;
+  const result = response.result as unknown;
+  return (
+    isRecord(result) && result.pong === true && Object.keys(result).length === 1
+  );
 }
 
 function responseTitle(

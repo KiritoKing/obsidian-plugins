@@ -33,15 +33,12 @@ export function hasExplicitSiteConsent(
 }
 
 export function isSiteAuthorized(
-  chromeOrigins: unknown,
+  chromeAccess: unknown,
   explicitOrigins: unknown,
   pattern: string,
 ): boolean {
   return (
-    isExactOriginPattern(pattern) &&
-    Array.isArray(chromeOrigins) &&
-    chromeOrigins.includes(pattern) &&
-    hasExplicitSiteConsent(explicitOrigins, pattern)
+    chromeAccess === true && hasExplicitSiteConsent(explicitOrigins, pattern)
   );
 }
 

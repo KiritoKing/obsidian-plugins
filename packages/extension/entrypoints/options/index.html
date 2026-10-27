@@ -6,41 +6,105 @@
     <title>Browser Profile Title Bridge Settings</title>
     <link rel="stylesheet" href="./style.css" />
   </head>
-  <body>
+  <body class="options-page">
     <main>
-      <header>
-        <h1>Browser Profile Title Bridge</h1>
-        <p id="connection" role="status">Checking connection…</p>
+      <header class="page-header">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+            <path d="M5 4.75h9.5l4.5 4.5v10A1.75 1.75 0 0 1 17.25 21h-12A1.75 1.75 0 0 1 3.5 19.25v-12A2.5 2.5 0 0 1 6 4.75Z" />
+            <path d="M14 5v4.5h4.5M7.5 13h9M7.5 16.5h6" />
+          </svg>
+        </div>
+        <div>
+          <p class="eyebrow">BROWSER PROFILE</p>
+          <h1>Title Bridge settings</h1>
+          <p class="page-intro">Manage the local connection and the sites allowed to provide page titles.</p>
+        </div>
       </header>
 
-      <section>
-        <h2>Local bridge</h2>
-        <label for="channel">Channel</label>
-        <div class="inline-form">
-          <input id="channel" name="channel" type="text" value="default" maxlength="40" pattern="[a-z0-9][a-z0-9-]{0,39}" />
-          <button id="save-channel" type="button">Save channel</button>
-        </div>
-        <p class="hint">Use lowercase letters, numbers, and hyphens. The channel is stored in this browser profile.</p>
-        <div class="inline-form">
-          <button id="reconnect" type="button">Connect / reconnect</button>
-          <button id="disconnect" class="secondary" type="button">Disconnect</button>
-        </div>
-        <p id="channel-status" class="hint" role="status" aria-live="polite"></p>
-      </section>
+      <div class="settings-grid">
+        <section id="bridge-card" class="settings-card" aria-labelledby="bridge-heading">
+          <div class="card-heading">
+            <div>
+              <p class="eyebrow">LOCAL CONNECTION</p>
+              <h2 id="bridge-heading">Bridge status</h2>
+            </div>
+            <span id="connection-badge" class="badge neutral">Checking</span>
+          </div>
+          <div class="connection-status">
+            <span id="connection-dot" class="status-dot" aria-hidden="true"></span>
+            <p id="connection" role="status" aria-live="polite">Checking connection…</p>
+          </div>
+          <label for="channel">Channel</label>
+          <p class="field-help">Use the same channel in the Obsidian plugin and this browser profile.</p>
+          <div class="inline-form channel-form">
+            <input
+              id="channel"
+              name="channel"
+              type="text"
+              value="default"
+              maxlength="40"
+              pattern="[a-z0-9][a-z0-9-]{0,39}"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <button id="save-channel" class="primary-button" type="button">Save channel</button>
+          </div>
+          <p id="channel-status" class="feedback" role="status" aria-live="polite"></p>
+          <div class="connection-actions">
+            <button id="reconnect" class="secondary-button" type="button">Connect / reconnect</button>
+            <button id="disconnect" class="quiet-button" type="button">Disconnect</button>
+          </div>
+        </section>
 
-      <section>
-        <h2>Site access</h2>
-        <p>Grant access one site at a time. The extension reads only the rendered page title from this Chrome profile.</p>
-        <label for="site-url">Site URL</label>
-        <div class="inline-form">
-          <input id="site-url" name="site-url" type="url" placeholder="https://example.com/page" autocomplete="url" />
-          <button id="grant-site" type="button">Grant site</button>
-        </div>
-        <p id="permission-status" class="hint" role="status" aria-live="polite"></p>
-        <h3>Granted sites</h3>
-        <ul id="site-list" aria-live="polite"></ul>
-        <p id="empty-sites" class="hint">No sites are currently granted.</p>
-      </section>
+        <section id="site-access-card" class="settings-card site-settings" aria-labelledby="sites-heading">
+          <div class="card-heading">
+            <div>
+              <p class="eyebrow">SITE ACCESS</p>
+              <h2 id="sites-heading">Approved sites</h2>
+            </div>
+            <span class="count-badge">Exact origins</span>
+          </div>
+          <p class="section-copy">Each title request needs Chrome access and a separate exact-origin approval in this extension.</p>
+
+          <form id="grant-form" class="grant-form" novalidate>
+            <label for="site-url">Add a site</label>
+            <div class="inline-form site-form">
+              <input
+                id="site-url"
+                name="site-url"
+                type="url"
+                placeholder="https://example.com/page"
+                autocomplete="url"
+                spellcheck="false"
+                aria-describedby="site-url-help permission-status"
+              />
+              <button id="grant-site" class="primary-button" type="submit">Grant site</button>
+            </div>
+            <p id="site-url-help" class="field-help">Enter an HTTP(S) page. Only its origin will be used and displayed.</p>
+          </form>
+          <p id="permission-status" class="feedback" role="status" aria-live="polite"></p>
+
+          <div class="list-heading">
+            <h3>Exact origins</h3>
+            <p>Chrome permission and extension approval are shown separately.</p>
+          </div>
+          <p id="sites-loading" class="loading-state" role="status" aria-live="polite" hidden>
+            <span class="spinner" aria-hidden="true"></span> Loading site access…
+          </p>
+          <p id="sites-error" class="error-state" role="status" aria-live="polite" hidden></p>
+          <ul id="site-list" aria-live="polite"></ul>
+          <p id="empty-sites" class="empty-state" hidden>No exact origins are listed yet. Broad Chrome permissions, if present, do not approve any site in this extension.</p>
+
+          <div id="broad-permission-card" class="broad-permission-card" hidden>
+            <div>
+              <h3>Broad Chrome permissions</h3>
+              <p>These permissions can provide browser access, but never count as an explicit site approval.</p>
+            </div>
+            <ul id="broad-permission-list"></ul>
+          </div>
+        </section>
+      </div>
     </main>
     <script type="module" src="./main.ts"></script>
   </body>

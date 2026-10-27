@@ -12,6 +12,7 @@ export interface BrowserProfileTitleSettings {
   shouldPreserveSelectionAsTitle: boolean;
   websiteBlacklist: string;
   maximumTitleLength: number;
+  legacyFallbackEnabled: boolean;
 }
 
 export const DEFAULT_SETTINGS: BrowserProfileTitleSettings = {
@@ -22,6 +23,7 @@ export const DEFAULT_SETTINGS: BrowserProfileTitleSettings = {
   shouldPreserveSelectionAsTitle: false,
   websiteBlacklist: "",
   maximumTitleLength: 0,
+  legacyFallbackEnabled: true,
 };
 
 export function sanitizeSettings(value: unknown): BrowserProfileTitleSettings {
@@ -66,5 +68,9 @@ export function sanitizeSettings(value: unknown): BrowserProfileTitleSettings {
       typeof value.websiteBlacklist === "string"
         ? value.websiteBlacklist.slice(0, 4096)
         : DEFAULT_SETTINGS.websiteBlacklist,
+    legacyFallbackEnabled:
+      typeof value.legacyFallbackEnabled === "boolean"
+        ? value.legacyFallbackEnabled
+        : DEFAULT_SETTINGS.legacyFallbackEnabled,
   };
 }

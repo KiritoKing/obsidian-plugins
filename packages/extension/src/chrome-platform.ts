@@ -6,22 +6,21 @@ import {
 } from "./title-reader";
 import {
   EXPLICIT_SITE_ORIGINS_KEY,
+  hasExplicitSiteConsent,
   isExactOriginPattern,
-  isSiteAuthorized,
 } from "./site-consent";
 
 export function createChromeTitlePlatform(): TitleResolutionPlatform {
   return {
     async containsOrigin(pattern) {
       if (!isExactOriginPattern(pattern)) return false;
-      const [permissions, stored] = await Promise.all([
-        chrome.permissions.getAll(),
+      const [chromeAccess, stored] = await Promise.all([
+        chrome.permissions.contains({ origins: [pattern] }),
         chrome.storage.local.get(EXPLICIT_SITE_ORIGINS_KEY),
       ]);
-      return isSiteAuthorized(
-        permissions.origins,
-        stored[EXPLICIT_SITE_ORIGINS_KEY],
-        pattern,
+      return (
+        chromeAccess &&
+        hasExplicitSiteConsent(stored[EXPLICIT_SITE_ORIGINS_KEY], pattern)
       );
     },
     async listTabs() {

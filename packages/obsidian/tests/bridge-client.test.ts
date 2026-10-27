@@ -138,6 +138,34 @@ describe("local browser bridge client", () => {
     }
   });
 
+  test("checks the live bridge with an authenticated ping and pong", async () => {
+    const fixture = await createFixture({
+      onPing(id, socket) {
+        socket.write(
+          encodeFrame({
+            version: 1,
+            type: "response",
+            id,
+            ok: true,
+            result: { pong: true },
+          }),
+        );
+      },
+    });
+
+    try {
+      expect(
+        await new BridgeClient(
+          fixture.channel,
+          1000,
+          fixture.baseDirectory,
+        ).ping(),
+      ).toBe(true);
+    } finally {
+      await fixture.close();
+    }
+  });
+
   test("rejects symbolic-link descriptors and sockets outside the channel", async () => {
     const fixture = await createFixture({ onRequest() {} });
     const originalDescriptor = await readFile(fixture.descriptorPath, "utf8");
@@ -179,6 +207,7 @@ describe("local browser bridge client", () => {
 async function createFixture(options: {
   authReply?: unknown;
   onRequest?(request: ResolveTitleRequest, socket: Socket): void;
+  onPing?(requestId: string, socket: Socket): void;
 }): Promise<Fixture> {
   const baseDirectory = await mkdtemp("/tmp/bpt-");
   const channel = `test-${randomBytes(3).toString("hex")}`;
@@ -209,6 +238,7 @@ async function createFixture(options: {
           continue;
         }
         if (isResolveTitleRequest(frame)) options.onRequest?.(frame, socket);
+        else if (isPingRequest(frame)) options.onPing?.(frame.id, socket);
       }
     });
   });
@@ -269,6 +299,17 @@ function isResolveTitleRequest(value: unknown): value is ResolveTitleRequest {
     typeof value === "object" &&
     value !== null &&
     (value as { type?: unknown }).type === "resolve-title"
+  );
+}
+
+function isPingRequest(
+  value: unknown,
+): value is { version: 1; type: "ping"; id: string } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    (value as { type?: unknown }).type === "ping" &&
+    typeof (value as { id?: unknown }).id === "string"
   );
 }
 

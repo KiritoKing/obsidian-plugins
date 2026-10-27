@@ -6,24 +6,85 @@
     <title>Browser Profile Title Bridge</title>
     <link rel="stylesheet" href="./style.css" />
   </head>
-  <body>
+  <body class="popup-page">
     <main>
-      <header>
-        <h1>Title Bridge</h1>
-        <p id="connection" role="status">Checking connection…</p>
-        <p class="channel">Channel: <span id="channel">default</span></p>
+      <header class="topbar">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+            <path d="M5 4.75h9.5l4.5 4.5v10A1.75 1.75 0 0 1 17.25 21h-12A1.75 1.75 0 0 1 3.5 19.25v-12A2.5 2.5 0 0 1 6 4.75Z" />
+            <path d="M14 5v4.5h4.5M7.5 13h9M7.5 16.5h6" />
+          </svg>
+        </div>
+        <div class="brand-copy">
+          <p class="eyebrow">BROWSER PROFILE</p>
+          <h1>Title Bridge</h1>
+        </div>
+        <button
+          id="open-settings"
+          class="icon-button"
+          type="button"
+          aria-label="Open settings and site access"
+          title="Settings and site access"
+        >
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+            <path d="M12 15.25a3.25 3.25 0 1 0 0-6.5 3.25 3.25 0 0 0 0 6.5Z" />
+            <path d="m19.4 13.5 1.1.85-1.1 1.9-1.35-.45a7.8 7.8 0 0 1-1.55.9l-.25 1.4h-2.2l-.3-1.4a7.7 7.7 0 0 1-1.6-.9l-1.3.45-1.1-1.9 1.05-.9a7 7 0 0 1 0-1.8l-1.05-.9 1.1-1.9 1.3.45a7.7 7.7 0 0 1 1.6-.9l.3-1.4h2.2l.25 1.4a7.8 7.8 0 0 1 1.55.9l1.35-.45 1.1 1.9-1.1.85a7 7 0 0 1 0 1.9Z" transform="translate(-1 -1)" />
+          </svg>
+        </button>
       </header>
-      <section class="actions" aria-label="Bridge controls">
-        <button id="reconnect" type="button">Connect / reconnect</button>
-        <button id="disconnect" class="secondary" type="button">Disconnect</button>
+
+      <section class="connection-card" aria-label="Local bridge connection">
+        <div class="connection-copy">
+          <div class="status-heading">
+            <span id="connection-dot" class="status-dot" aria-hidden="true"></span>
+            <p id="connection" role="status" aria-live="polite">Checking connection…</p>
+          </div>
+          <p class="channel-line">Channel <span id="channel">default</span></p>
+        </div>
+        <div class="connection-actions">
+          <button id="reconnect" class="small-button" type="button">Reconnect</button>
+          <button id="disconnect" class="small-button secondary" type="button">Disconnect</button>
+        </div>
       </section>
-      <section class="reader">
-        <h2>Current page</h2>
-        <button id="read-title" type="button">Read this page title</button>
-        <p id="reader-status" role="status" aria-live="polite"></p>
+
+      <section class="site-card" aria-labelledby="current-site-heading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">SITE ACCESS</p>
+            <h2 id="current-site-heading">Current site</h2>
+          </div>
+          <span id="site-badge" class="badge neutral">Checking</span>
+        </div>
+        <p id="site-origin" class="site-origin">Checking current page…</p>
+        <p id="site-detail" class="supporting-copy" role="status" aria-live="polite">
+          Checking Chrome access and extension approval.
+        </p>
+        <button id="grant-site" class="primary-button" type="button" disabled>
+          Grant this site
+        </button>
+        <p id="site-feedback" class="feedback" role="status" aria-live="polite"></p>
+        <p class="privacy-note">Approves this origin for background title requests.</p>
+      </section>
+
+      <section class="reader-card" aria-labelledby="reader-heading">
+        <div class="reader-heading">
+          <div>
+            <p class="eyebrow">QUICK ACTION</p>
+            <h2 id="reader-heading">Page title</h2>
+          </div>
+          <span class="reader-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+              <path d="M5 5h14M12 5v14M8.5 19h7" />
+            </svg>
+          </span>
+        </div>
+        <button id="read-title" class="secondary-button" type="button" disabled>
+          Read this page title
+        </button>
+        <p id="reader-status" class="supporting-copy" role="status" aria-live="polite"></p>
         <p id="title-output" class="title-output" aria-live="polite"></p>
+        <p class="privacy-note">This click reads the current tab only; it does not grant background access.</p>
       </section>
-      <button id="open-settings" class="link-button" type="button">Settings and site access</button>
     </main>
     <script type="module" src="./main.ts"></script>
   </body>

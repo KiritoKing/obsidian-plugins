@@ -9,15 +9,17 @@ Personal, unofficial Obsidian plugins and a local browser-profile title bridge. 
 | `packages/native-host` | User-local Native Messaging and socket transport                   |
 | `packages/protocol`    | Shared request validation, errors and runtime path contract        |
 
-Authentication stays in the browser. The Obsidian plugin receives a title and status, not cookies or tokens. Sites are explicitly permitted in the extension. There is no external title-service fallback.
+Browser authentication stays in the browser. The Obsidian plugin receives a title and status, not cookies or tokens. Sites are explicitly permitted in the extension. When the browser path is unavailable, the original Auto Link Title scraper runs as a fallback with its own page request; no external title service is added.
 
 ## How it works
 
 Paste a URL into Obsidian. The plugin sends a bounded request over a private local Unix socket. Chrome launches the standalone Native Messaging host and the extension reads `document.title` in the profile where it is installed. An exact matching tab is reused; otherwise the extension opens a background tab and closes it after the request. Cookies, local storage and page bodies never cross the bridge.
 
-The extension requires a separate approval for each site. It rejects recognized login pages, access-denied pages, cross-origin redirects and unusable titles. A failed request leaves the URL in the note. Titles successfully inserted into notes follow the vault's normal storage and sync settings.
+The extension requires a separate approval for each site. Open its popup on the target page and click **Grant this site**. The popup shows the current site's authorization and bridge connection state; settings list approved sites and support manual grants and revocation.
 
-This first version retrieves titles only. It does not fetch document bodies or call a Feishu API. Browser-rendered SSO and Feishu pages use the same path, subject to their actual page title and site permissions.
+Browser requests reject recognized login pages, access-denied pages, cross-origin redirects and unusable titles. Missing approval, a disconnected bridge, timeout or another browser failure automatically invokes the original scraper when fallback is enabled. It uses an independent session rather than Chrome's sign-in, so a private page may still need browser approval. If both paths fail, the original URL stays intact. Titles inserted into notes follow the vault's normal storage and sync settings.
+
+The plugin retrieves titles only. The fallback may load page HTML to extract a title, but it does not import or store document bodies or call a Feishu API. Its hidden renderer keeps normal web security and isolation enabled. The upstream LinkPreview service is not enabled.
 
 ## Install from source
 
@@ -41,11 +43,11 @@ The initial target is Obsidian Desktop with Chrome on macOS or Linux. Build and 
 
    Registration writes one user-level Native Messaging manifest. Keep the checkout at the same path afterward. Existing registrations require explicit `--replace`; Chromium and Edge locations are available in the [host CLI](packages/native-host/README.md).
 
-4. Open the extension's settings. Keep channel `default` for the first profile, connect, and use **Grant site** for each site you want to read. Give additional profiles different channels so requests have an explicit destination.
+4. Open the extension on a target page and click **Grant this site**, then confirm Chrome's permission prompt. The site card shows when title access is approved. Keep channel `default` for the first profile; the settings page supports other channels, manual site grants and revocation. Give additional profiles different channels so requests have an explicit destination.
 
 5. Copy `dist/browser-profile-link-title/` into the vault's `.obsidian/plugins/` directory, then enable **Browser Profile Link Title** in Obsidian. Disable Auto Link Title while using its fork to avoid competing paste handlers. Set the same channel in the plugin settings.
 
-Open a target page in the chosen Chrome profile and use **Enhance existing URL with browser title**, or paste a URL into a note. If sign-in is needed, complete it in Chrome and retry. The plugin has a distinct ID and does not migrate the old plugin's settings.
+Open a target page in the chosen Chrome profile and use **Enhance existing URL with browser title**, or paste a URL into a note. If sign-in is needed, complete it in Chrome and retry. Obsidian settings show connection and last-lookup status and let you disable the default-on original-scraper fallback. The plugin has a distinct ID and does not migrate the old plugin's settings or service credentials.
 
 There is no Chrome Web Store listing or published npm package. Source delivery and local fixture tests do not confirm access to a particular private business page.
 
