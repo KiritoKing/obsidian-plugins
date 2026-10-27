@@ -73,16 +73,16 @@ Obsidian tries the browser first, then the pinned upstream scraping chain once w
 
 ### Installed Obsidian verification
 
-- The existing plugin was upgraded to v0.2.0 with a private backup and file-hash readback. Runtime confirms the new plugin remains enabled/loaded, the original plugin remains disabled, and fallback defaults on. Existing settings and plugin-list preservation are checked separately at handoff.
+- The existing plugin was upgraded to v0.2.0 with a private backup and file-hash readback. Runtime confirms the new plugin remains enabled/loaded, the original plugin remains disabled, and fallback defaults on. All five installed files match the build; the existing plugin-list file, new-plugin settings file and original-plugin data file retain their previous hashes.
 - Through the actual installed plugin and real Electron runtime, seven loopback scenarios passed: static HTML, JavaScript-delayed title, rejected HEAD, a non-HTML filename, no title, a sign-in page, and an unavailable bridge channel. Unapproved sites used fallback; an unavailable channel reported `bridge-unavailable`. The non-HTML case made no GET request. Temporary test settings were restored without saving them.
 - The final loopback verification used a 6000 ms per-path budget. An initial 2000 ms cold-start run could expire before the hidden renderer was ready; it is not used as success evidence.
 - Actual native clipboard paste produced the expected Markdown link via fallback. A second paste with no usable title preserved the raw URL and added no Markdown label. The task note's base content/frontmatter remained intact.
 - The native Obsidian settings were opened and visually checked; **Check connection** performed an authenticated ping and displayed **Connected**, with fallback enabled. Hidden Electron window counts were equal before and after testing.
 - Real testing found Electron's address-only default title on title-less HTML. The classifier now rejects a matching URL with or without its scheme, while preserving normal tutorial titles that mention URLs or login. A regression test and the repeated real-runtime check pass.
 - The task note was moved to the system trash, its tab was closed and the original active tab restored. The task server exited, its port was rebound successfully, and test-only files were removed. Production bridge state is retained for normal use.
+- The user confirmed manually reloading the unpacked extension in the everyday Chrome profile. A fresh authenticated ping passed, and the installed v0.2.0 plugin retrieved titles from two existing signed-in Wiki/Docx pages through the browser route. Both titles matched fresh browser-tab metadata after normalization; both original document tabs remained present. No fallback was used for these requests.
 
 ### Remaining v0.2 acceptance
 
-- Reloading the unpacked extension in the everyday Chrome profile requires a manual action because the browser tool cannot access privileged extension-management pages. Confirmation and a fresh signed-in-page check are pending at this recording point.
 - Native toolbar-popup activation, the native Chrome permission prompt, real drag/drop UI and deliberately expired authentication in the everyday profile are not newly verified by this update.
 - v0.2 has local source/build/fixture/runtime evidence. It has not been pushed or run through remote CI; the earlier linked CI applies to the v0.1 source baseline.
